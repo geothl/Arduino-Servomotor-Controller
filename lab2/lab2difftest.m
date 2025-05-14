@@ -1,0 +1,12 @@
+km=242.6966;
+tm=0.53;
+kmeiot=1/36;
+kt=0.003691851;
+naumtacho=0.896;
+k0=0.2366;
+g=-km*k0*kmeiot/tm;
+des_pos=5;
+K2=-1.98;
+K1=((3*K2-1/0.53)^2)/(12*1.67);
+y0 = [2 0];
+[t,y] = ode45(@(t,y) odefcn(t,y,A,B), tspan, y0);

@@ -1,0 +1,156 @@
+%clear
+
+%a=arduino;
+
+writePWMVoltage(a, 'D6', 0)
+writePWMVoltage(a, 'D9', 0)
+
+
+%system model 
+km=242.6966;
+tm=0.53;
+kmeiot=1/36;
+kt=0.003691851;
+naumtacho=0.896;
+k0=0.2366;
+%t1 = 0:0.01:2;
+%u = 10*ones(size(t1));
+x0 = [2 0];
+%A=[0 -1.7802;0 -1/0.53;];
+%B=[0;1.6906;];
+%C=[1 0];
+%D=0;
+A=[0 -k0*kmeiot/kt;0 -1/tm;];
+B=[0;kt*km/tm;];
+C=[1 0];
+D=0;
+
+K1=10;
+K2=4;
+K=[K1 K2];
+%K=place(A,B,[-10 -15]);
+%K1=K(1);
+%K2=K(2);
+E=eig(A-B*K);
+om=5;
+
+%inverse=inv(A-B*K);
+%kr1=-C*inverse*B;
+%kr=1/kr1;   %kr=k1 wow
+%krr=5*kr;
+
+
+
+% Set the desired position
+
+
+%   The input setpoint is in Volts and can vary from 0 to 10 Volts because the position pot is refered to GND
+
+V_7805=5.474;
+vref_arduino=5.1;
+
+
+
+
+
+
+positionData = [];
+velocityData = [];
+eData = [];
+timeData = [];
+uData=[];
+refData=[];
+t=0;
+
+% CLOSE ALL PREVIOUS FIGURES FROM SCREEN
+
+close all
+
+reseter();
+
+
+
+% WAIT A KEY TO PROCEED
+disp(['Connect cable from Arduino to Input Power Amplifier and then press enter to start controller']);
+pause()
+
+
+%START CLOCK
+tic
+ 
+ 
+while(t<5)     
+position = readVoltage(a, 'A5'); % position
+velocity = readVoltage(a,'A3'); % velocity
+
+theta = 3 * vref_arduino * position / 5;
+vtacho = -2 * (2 * velocity * vref_arduino / 5 - V_7805); %V7805 is offset
+x1=theta;
+x2=vtacho;
+
+ref_pos=5+2*sin(om*t);
+
+u = K1*(ref_pos - theta)-K2*vtacho;
+ 
+if abs(u) > 10
+ 	u = sign(u) * 10;
+ end
+
+
+
+if u > 0
+%    analogWrite(a,6,0);
+%    analogWrite(a,9,min(round(e/2*255/ Vref_arduino) , 255));
+    
+	writePWMVoltage(a, 'D9', 0)
+	writePWMVoltage(a, 'D6', abs(u) / 2)
+else
+%    analogWrite(a,9,0);
+%   analogWrite(a,6,min(round(-e/2*255/ Vref_arduino) , 255));
+  
+    writePWMVoltage(a, 'D6', 0)
+	writePWMVoltage(a, 'D9', abs(u) / 2)
+end
+
+
+t=toc;
+
+    
+timeData = [timeData t];
+positionData = [positionData x1];
+velocityData = [velocityData x2];
+uData = [uData u];
+refData=[refData ref_pos];
+end
+
+% OUTPUT ZERO CONTROL SIGNAL TO STOP MOTOR  %
+writePWMVoltage(a, 'D6', 0)
+writePWMVoltage(a, 'D9', 0)
+
+disp(['End of control Loop. Press enter to see diagramms']);
+pause();
+
+%ref=5*ones(size(positionData));
+
+figure
+plot(timeData,positionData);
+title('position')
+xlabel('Time (s)') 
+ylabel('x1 (V)'); 
+figure
+plot(timeData,velocityData);
+title('velocity')
+xlabel('Time (s)') 
+ylabel('x2 (V)'); 
+figure
+plot(timeData,uData);
+title('input control')
+xlabel('Time (s)') 
+ylabel('u (V)'); 
+figure 
+plot(timeData,positionData,timeData,refData);
+legend({'y = x1','y = desired postion'},'Location','southeast')
+
+
+disp('Disonnect cable from Arduino to Input Power Amplifier and then press enter to stop controller');
+pause();
